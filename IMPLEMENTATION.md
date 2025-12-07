@@ -24,34 +24,36 @@ Built a multi-tenant CRM system for leads, applications, and tasks. Needed relat
 ## Changes by Section
 
 ### 1. Schema
+
 - File: backend/schema.sql
 - Changes: Added indexes for queries (leads by owner/stage/date, apps by lead, tasks due today). Added check constraints on tasks (type, due_at >= created_at).
 - Assumptions: related_id means application_id. Tenant ID set by app.
 - Features: Optimized DB queries, enforced data rules.
 
 ### 2. RLS Policies
+
 - File: backend/rls_policies.sql
 - Changes: SELECT: Admins see all tenant leads; counselors see owned or team leads (via user_teams joins). INSERT: Admins/counselors insert for tenant.
 - Assumptions: JWT has tenant_id, user_id, role. Team tables exist.
 - Features: Secure access control.
 
 ### 3. Edge Function
+
 - File: backend/edge-functions/create-task/index.ts
 - Changes: Validate inputs (required fields, type in ['call','email','review'], due_at future). Fetch tenant from app. Insert task, broadcast 'task.created'. Return 200/400/500.
 - Assumptions: App exists. Service role access. Title = "{type} task".
 - Features: Validated API, real-time events.
 
 ### 4. Frontend Page
+
 - File: frontend/pages/dashboard/today.tsx
 - Changes: Fetch tasks due today (client date calc), status != 'completed'. Mark complete: update status, re-fetch. Table shows title, app ID, due date, status.
 - Assumptions: User logged in. RLS filters tenant. 'Completed' means done. No React Query.
 - Features: Dashboard with CRUD, error/loading states.
 
 ### 5. Integration
-- File: N/A (text response)
-- Changes: Explained Stripe Checkout: create session, store payment_request, handle webhook, update status/stage.
-- Assumptions: Standard Stripe setup, payment_request table.
-- Features: Payment flow for app fees.
+
+For the Stripe Checkout integration, I explained how to handle application fees. Basically, when a user wants to pay, you first create a record in the payment_requests table to track the payment attempt. Then, you call Stripe to set up the checkout session with the fee details. You store the session ID from Stripe so you can reference it later. Webhooks from Stripe notify you when the payment goes through, at which point you update the payment status and mark the application as paid. This ensures everything is secure and auditable. The full explanation is in the README under ## Stripe Answer.
 
 ## Notes
 
