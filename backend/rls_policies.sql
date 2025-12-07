@@ -16,10 +16,26 @@ create policy "leads_select_policy"
 on public.leads
 for select
 using (
-  true
-  -- TODO: add real RLS logic here, refer to README instructions
+  tenant_id = ((current_setting('request.jwt.claims', true)::jsonb)->>'tenant_id')::uuid
+  and (
+    ((current_setting('request.jwt.claims', true)::jsonb)->>'role') = 'admin'
+    or owner_id = ((current_setting('request.jwt.claims', true)::jsonb)->>'user_id')::uuid
+    or owner_id in (
+      select ut2.user_id from user_teams ut1
+      join user_teams ut2 on ut1.team_id = ut2.team_id
+      where ut1.user_id = ((current_setting('request.jwt.claims', true)::jsonb)->>'user_id')::uuid
+    )
+  )
 );
 
 -- TODO: add INSERT policy that:
 -- - allows counselors/admins to insert leads for their tenant
 -- - ensures tenant_id is correctly set/validated
+
+create policy "leads_insert_policy"
+on public.leads
+for insert
+with check (
+  tenant_id = ((current_setting('request.jwt.claims', true)::jsonb)->>'tenant_id')::uuid
+  and ((current_setting('request.jwt.claims', true)::jsonb)->>'role') in ('admin', 'counselor')
+);

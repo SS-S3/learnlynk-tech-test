@@ -3,6 +3,7 @@ import { supabase } from "../../../lib/supabaseClient";
 
 type Task = {
   id: string;
+  title: string;
   type: string;
   status: string;
   application_id: string;
@@ -24,13 +25,21 @@ export default function TodayDashboard() {
       // - Use supabase.from("tasks").select(...)
       // - You can do date filtering in SQL or client-side
 
-      // Example:
-      // const { data, error } = await supabase
-      //   .from("tasks")
-      //   .select("*")
-      //   .eq("status", "open");
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
 
-      setTasks([]);
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .gte("due_at", startOfDay.toISOString())
+        .lt("due_at", endOfDay.toISOString())
+        .neq("status", "completed");
+
+      if (error) throw error;
+
+      setTasks(data || []);
     } catch (err: any) {
       console.error(err);
       setError("Failed to load tasks");
@@ -44,6 +53,15 @@ export default function TodayDashboard() {
       // TODO:
       // - Update task.status to 'completed'
       // - Re-fetch tasks or update state optimistically
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: "completed" })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      // Re-fetch tasks
+      await fetchTasks();
     } catch (err: any) {
       console.error(err);
       alert("Failed to update task");
@@ -66,9 +84,9 @@ export default function TodayDashboard() {
         <table>
           <thead>
             <tr>
-              <th>Type</th>
+              <th>Title</th>
               <th>Application</th>
-              <th>Due At</th>
+              <th>Due Date</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -76,7 +94,7 @@ export default function TodayDashboard() {
           <tbody>
             {tasks.map((t) => (
               <tr key={t.id}>
-                <td>{t.type}</td>
+                <td>{t.title}</td>
                 <td>{t.application_id}</td>
                 <td>{new Date(t.due_at).toLocaleString()}</td>
                 <td>{t.status}</td>
